@@ -218,3 +218,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Project data
+data/cache/
+data/prices_daily.parquet
+data/universe.csv

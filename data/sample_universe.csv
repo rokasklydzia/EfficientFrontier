@@ -1,0 +1,16 @@
+symbol,name,asset_class,sector
+SPY,S&P 500,Equity,Equity ETF
+QQQ,Nasdaq 100,Equity,Equity ETF
+IWM,Russell 2000,Equity,Equity ETF
+EFA,Developed ex-US,Equity,Equity ETF
+EEM,Emerging markets,Equity,Equity ETF
+TLT,Treasuries 20y+,Bond,Bond ETF
+IEF,Treasuries 7-10y,Bond,Bond ETF
+SHY,Treasuries 1-3y,Bond,Bond ETF
+LQD,IG corporate,Bond,Bond ETF
+HYG,High yield corporate,Bond,Bond ETF
+TIP,TIPS,Bond,Bond ETF
+GLD,Gold,Commodity,Commodity ETF
+SLV,Silver,Commodity,Commodity ETF
+DBC,Broad commodities,Commodity,Commodity ETF
+USO,WTI crude oil,Commodity,Commodity ETF

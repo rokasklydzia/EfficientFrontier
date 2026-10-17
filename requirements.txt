@@ -1,0 +1,9 @@
+cvxpy>=1.5
+ib_async>=2.0
+lxml>=5.0
+numpy>=1.26
+pandas>=2.2
+plotly>=5.20
+pyarrow>=15.0
+streamlit>=1.40
+pytest>=8.0
