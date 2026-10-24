@@ -4,7 +4,7 @@ Needs TWS or IB Gateway running locally with the API enabled
 (Configure > API > Settings > "Enable ActiveX and Socket Clients").
 
     python -m frontier.ibkr_fetch                 # full universe, TWS paper port 7497
-    python -m frontier.ibkr_fetch --port 4001     # IB Gateway live
+    python -m frontier.ibkr_fetch --port 4002     # IB Gateway paper
     python -m frontier.ibkr_fetch --etfs-only     # skip the S&P 500 stocks
 
 Each symbol is cached under data/cache/, so an interrupted run resumes where it stopped.
@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import time
 from collections.abc import Callable
 
@@ -23,6 +24,8 @@ from .data import DATA_DIR, FULL_META, FULL_PRICES
 from .universe import build_universe
 
 CACHE_DIR = DATA_DIR / "cache"
+# Set IBKR_PORT=4002 for IB Gateway paper, so the app's refresh button finds it too.
+DEFAULT_PORT = int(os.environ.get("IBKR_PORT", 7497))
 
 
 def _ib_symbol(symbol: str) -> str:
@@ -51,7 +54,7 @@ def fetch_symbol(ib, symbol: str, years: int) -> pd.Series | None:
     return pd.Series({pd.Timestamp(b.date): b.close for b in bars}, name=symbol)
 
 
-def fetch_all(host: str = "127.0.0.1", port: int = 7497, client_id: int = 17, years: int = 5,
+def fetch_all(host: str = "127.0.0.1", port: int = DEFAULT_PORT, client_id: int = 17, years: int = 5,
               include_sp500: bool = True, refresh: bool = False,
               progress: Callable[[int, int, str], None] | None = None) -> pd.DataFrame:
     from ib_async import IB
@@ -105,7 +108,8 @@ def fetch_all(host: str = "127.0.0.1", port: int = 7497, client_id: int = 17, ye
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=7497, help="7497 TWS paper, 7496 TWS live, 4002/4001 Gateway")
+    parser.add_argument("--port", type=int, default=DEFAULT_PORT,
+                        help="7497 TWS paper, 7496 TWS live, 4002/4001 Gateway (default: $IBKR_PORT or 7497)")
     parser.add_argument("--client-id", type=int, default=17)
     parser.add_argument("--years", type=int, default=5)
     parser.add_argument("--etfs-only", action="store_true")
