@@ -22,20 +22,88 @@ pip install -r requirements.txt
 
 ## Get the full dataset from IBKR
 
-1. Start TWS or IB Gateway and log in (paper is fine).
-2. Enable the API under *Configure → API → Settings → Enable ActiveX and Socket Clients*.
-3. Run:
+The fetch script talks to IB Gateway or Trader Workstation (TWS) running on your own machine through the IBKR socket API. IB Gateway is the lighter option: it has no charts or order screens, only a login window and the API. Use TWS if you also want to look at the account.
+
+### 1. Install IB Gateway (or TWS)
+
+Download the **stable** installer for your OS. Both bundle their own Java, so nothing else is needed.
+
+- IB Gateway: https://www.interactivebrokers.com/en/trading/ibgateway-stable.php
+- TWS: https://www.interactivebrokers.com/en/trading/tws.php
+
+| OS | Install |
+|---|---|
+| Windows | Run the `.exe` installer and start *IB Gateway* from the Start menu. |
+| macOS | Open the `.dmg`, run the installer, then start *IB Gateway* from Applications. If macOS blocks it, allow it under *System Settings → Privacy & Security*. |
+| Linux | `chmod +x ibgateway-stable-standalone-linux-x64.sh && ./ibgateway-stable-standalone-linux-x64.sh`, then start it from `~/Jts/ibgateway/<version>/ibgateway`. |
+
+### 2. Log in to the paper account
+
+Select **IB API** (not FIX CTCI) and **Paper Trading**, and log in with your *paper* username. You find it in the IBKR client portal under *Settings → Account Settings → Paper Trading Account*, where you can also reset its password.
+
+On the same page, turn on **Share real-time market data subscriptions with paper trading account**. Without that, the paper login has no market data permissions and historical requests for US stocks and ETFs fail. The share takes effect from the next day.
+
+### 3. Configure the API
+
+IB Gateway: *Configure → Settings → API → Settings*. TWS: *File (or Edit) → Global Configuration → API → Settings*.
+
+| Setting | Value |
+|---|---|
+| Enable ActiveX and Socket Clients | on (TWS only; Gateway always has it on) |
+| Read-Only API | on (the script connects with `readonly=True` and never places orders) |
+| Socket port | 4002 Gateway paper, 4001 Gateway live, 7497 TWS paper, 7496 TWS live |
+| Allow connections from localhost only | on |
+| Trusted IPs | `127.0.0.1` |
+
+Click **Apply** and **OK**. Gateway and TWS log you out once a day; set the daily restart time under *Lock and Exit* so it doesn't happen mid-download.
+
+### 4. Download the prices
+
+The script connects with client id 17 to `127.0.0.1` (or `IBKR_HOST`), on port 7497 (TWS paper) unless `IBKR_PORT` is set.
 
 ```bash
-python -m frontier.ibkr_fetch               # TWS paper, port 7497
-python -m frontier.ibkr_fetch --port 7496   # TWS live
-python -m frontier.ibkr_fetch --port 4002   # IB Gateway paper (4001 for live)
-python -m frontier.ibkr_fetch --etfs-only   # skip the S&P 500 stocks
+python -m frontier.ibkr_fetch                 # TWS paper, port 7497
+python -m frontier.ibkr_fetch --port 4002     # IB Gateway paper (4001 for live)
+python -m frontier.ibkr_fetch --port 7496     # TWS live
+python -m frontier.ibkr_fetch --etfs-only     # skip the S&P 500 stocks; good for a first test
 ```
 
-The download takes a while for about 530 symbols. Each symbol is cached in `data/cache/`, so an interrupted run picks up where it stopped. Pass `--refresh` to download everything again. The result is written to `data/prices_daily.parquet`. You can also start the download from the app's **Refresh from IBKR** button.
+To use Gateway everywhere, including the app's **Refresh from IBKR** button, set the port once:
 
-US stocks and ETFs need an IBKR market data subscription for historical bars. Without one, those symbols are skipped and listed at the end of the run.
+```bash
+export IBKR_PORT=4002        # macOS / Linux
+$env:IBKR_PORT = "4002"      # Windows PowerShell
+```
+
+### Running the script in WSL with Gateway on Windows
+
+Inside WSL, `127.0.0.1` is the Linux VM, not Windows, so the script gets `ConnectionRefusedError`. Point it at the Windows host and let Gateway accept WSL's address:
+
+1. In Gateway's API settings, untick **Allow connections from localhost only** and add WSL's own address to **Trusted IPs**. Get that address in WSL with `hostname -I | awk '{print $1}'`. It can change after a reboot, so update it if connections start timing out.
+2. Set the host to the Windows side of WSL's network:
+
+```bash
+export IBKR_HOST=$(ip route | awk '/default/ {print $3}')
+export IBKR_PORT=4001        # or 4002 for paper
+python -m frontier.ibkr_fetch --etfs-only
+```
+
+A `TimeoutError` (rather than connection refused) means the connection reached Gateway but it didn't accept it: recheck step 1.
+
+The download takes a while for about 530 symbols. Each symbol is cached in `data/cache/`, so an interrupted run picks up where it stopped. Pass `--refresh` to download everything again. The result is written to `data/prices_daily.parquet`.
+
+US stocks and ETFs need an IBKR market data subscription for historical bars (the *US Securities Snapshot and Futures Value Bundle* covers them). Without one, those symbols are skipped and listed at the end of the run.
+
+### Troubleshooting
+
+| Message | Cause and fix |
+|---|---|
+| `ConnectionRefusedError` / `API connection failed` | Gateway or TWS isn't running or logged in, or the port is wrong. Check the socket port in the API settings and pass the same `--port`. |
+| `TimeoutError` right after connecting | A login dialog or the API connection prompt is waiting in Gateway/TWS. Accept it, or add `127.0.0.1` to Trusted IPs. |
+| Error 326, client id already in use | Another script is connected with id 17. Pass `--client-id 18`. |
+| Error 354 or 10167, market data not subscribed | The paper account has no market data. Share your live subscriptions with it (step 2) or subscribe to the US bundle. |
+| Error 162, pacing violation | Too many historical requests. Wait ten minutes and rerun; cached symbols are skipped. |
+| Error 200, no security definition | IBKR doesn't recognise the ticker (for example a recent rename). The symbol is skipped. |
 
 ## Run the app
 
