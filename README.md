@@ -59,7 +59,7 @@ Click **Apply** and **OK**. Gateway and TWS log you out once a day; set the dail
 
 ### 4. Download the prices
 
-The script connects to `127.0.0.1` with client id 17. The port defaults to 7497 (TWS paper), or to `IBKR_PORT` when that is set.
+The script connects with client id 17 to `127.0.0.1` (or `IBKR_HOST`), on port 7497 (TWS paper) unless `IBKR_PORT` is set.
 
 ```bash
 python -m frontier.ibkr_fetch                 # TWS paper, port 7497
@@ -74,6 +74,21 @@ To use Gateway everywhere, including the app's **Refresh from IBKR** button, set
 export IBKR_PORT=4002        # macOS / Linux
 $env:IBKR_PORT = "4002"      # Windows PowerShell
 ```
+
+### Running the script in WSL with Gateway on Windows
+
+Inside WSL, `127.0.0.1` is the Linux VM, not Windows, so the script gets `ConnectionRefusedError`. Point it at the Windows host and let Gateway accept WSL's address:
+
+1. In Gateway's API settings, untick **Allow connections from localhost only** and add WSL's own address to **Trusted IPs**. Get that address in WSL with `hostname -I | awk '{print $1}'`. It can change after a reboot, so update it if connections start timing out.
+2. Set the host to the Windows side of WSL's network:
+
+```bash
+export IBKR_HOST=$(ip route | awk '/default/ {print $3}')
+export IBKR_PORT=4001        # or 4002 for paper
+python -m frontier.ibkr_fetch --etfs-only
+```
+
+A `TimeoutError` (rather than connection refused) means the connection reached Gateway but it didn't accept it: recheck step 1.
 
 The download takes a while for about 530 symbols. Each symbol is cached in `data/cache/`, so an interrupted run picks up where it stopped. Pass `--refresh` to download everything again. The result is written to `data/prices_daily.parquet`.
 

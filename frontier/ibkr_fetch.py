@@ -24,7 +24,9 @@ from .data import DATA_DIR, FULL_META, FULL_PRICES
 from .universe import build_universe
 
 CACHE_DIR = DATA_DIR / "cache"
-# Set IBKR_PORT=4002 for IB Gateway paper, so the app's refresh button finds it too.
+# Set IBKR_PORT=4002 for IB Gateway paper (and IBKR_HOST when Gateway runs elsewhere, e.g. Windows
+# from WSL), so the app's refresh button finds it too.
+DEFAULT_HOST = os.environ.get("IBKR_HOST", "127.0.0.1")
 DEFAULT_PORT = int(os.environ.get("IBKR_PORT", 7497))
 
 
@@ -54,7 +56,7 @@ def fetch_symbol(ib, symbol: str, years: int) -> pd.Series | None:
     return pd.Series({pd.Timestamp(b.date): b.close for b in bars}, name=symbol)
 
 
-def fetch_all(host: str = "127.0.0.1", port: int = DEFAULT_PORT, client_id: int = 17, years: int = 5,
+def fetch_all(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT, client_id: int = 17, years: int = 5,
               include_sp500: bool = True, refresh: bool = False,
               progress: Callable[[int, int, str], None] | None = None) -> pd.DataFrame:
     from ib_async import IB
@@ -107,7 +109,7 @@ def fetch_all(host: str = "127.0.0.1", port: int = DEFAULT_PORT, client_id: int 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--host", default=DEFAULT_HOST, help="default: $IBKR_HOST or 127.0.0.1")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT,
                         help="7497 TWS paper, 7496 TWS live, 4002/4001 Gateway (default: $IBKR_PORT or 7497)")
     parser.add_argument("--client-id", type=int, default=17)
